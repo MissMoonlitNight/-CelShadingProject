@@ -19,7 +19,11 @@
 int w = 1024;
 int h = 768;
 
+float out_thick = 0.01f; // толщена обводки
 Camera cam(glm::vec3(0.0f, 0.0f, 0.0f), 5.0f);
+
+bool rot_enable = false; // кручение объекта
+float cur_angle = 0.0f; 
 
 float lastX = w / 2.0f;
 float lastY = h / 2.0f;
@@ -35,7 +39,7 @@ std::string GetFile() {
     ofn.hwndOwner = NULL;
     ofn.lpstrFile = szFile;
     ofn.nMaxFile = sizeof(szFile);
-    ofn.lpstrFilter = "Obj Files\0*.obj\0All\0*.*\0";
+    ofn.lpstrFilter = "Obj Files\0*.obj\0All\0*.*\0"; // только obj
     ofn.nFilterIndex = 1;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 
@@ -70,7 +74,6 @@ void mouse_cb(GLFWwindow* window, double xposIn, double yposIn) {
     lastX = x;
     lastY = y;
 
-    // проверка нажатия колесика
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) {
         cam.ProcessMouseMovement(xoff, yoff);
     }
@@ -78,8 +81,41 @@ void mouse_cb(GLFWwindow* window, double xposIn, double yposIn) {
 
 //колёсико мыши
 void scroll_cb(GLFWwindow* window, double xoff, double yoff) {
-    cam.ProcessMouseScroll(static_cast<float>(yoff));
+
+    //изменение толщены обводки при зажатом ALT
+    if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
+    {
+        out_thick += static_cast<float>(yoff) * 0.002f;
+        if (out_thick < 0.0f) out_thick = 0.0f;
+        // std::cout << "Thickness: " << out_thick << std::endl;
+    }
+    else
+    {
+        //обычный зум, если альт не нажат
+        cam.ProcessMouseScroll(static_cast<float>(yoff));
+    }
 }
+
+//загрузка нового файла
+void UpdateModel(Model*& current_model_ptr) {
+    std::string p = GetFile();
+
+    if (p == "") return;
+
+    // фиксим путь (виндовс слеши)
+    for (int i = 0; i < p.length(); ++i) {
+        if (p[i] == '\\') p[i] = '/';
+    }
+    //  удаление старой
+    if (current_model_ptr != NULL) {
+        delete current_model_ptr;
+    }
+
+    // загрузка новой 
+    std::cout << "Loading: " << p << std::endl;
+    current_model_ptr = new Model(p);
+}
+
 
 int main() {
     std::cout << "Select file..." << std::endl;
@@ -90,7 +126,6 @@ int main() {
         return 0;
     }
 
-    // фиксим путь
     for (int i = 0; i < path.length(); ++i) {
         if (path[i] == '\\') path[i] = '/';
     }
@@ -98,7 +133,7 @@ int main() {
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3); 
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWwindow* win = glfwCreateWindow(w, h, "Project 1 Outline", NULL, NULL);
@@ -122,23 +157,47 @@ int main() {
     // Шейдер для обводки
     Shader outShader("outline.vert", "outline.frag");
 
-    Model mdl(path);
+    Model* mdl = new Model(path);
 
     glm::vec3 lghtPos(2.0f, 5.0f, 5.0f);
 
     while (!glfwWindowShouldClose(win)) {
         if (glfwGetKey(win, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(win, true);
-        
-        // цвет фона
+
+        //Открытие новго файла при нажатии на O
+        static bool o_pressed = false;
+        if (glfwGetKey(win, GLFW_KEY_O) == GLFW_PRESS) {
+            if (!o_pressed) {
+                o_pressed = true;
+                UpdateModel(mdl);
+            }
+        }
+        else {
+            o_pressed = false;
+        }
+        //Вкл.Выкл. кручения на R
+        static bool r_pressed = false;
+        if (glfwGetKey(win, GLFW_KEY_R) == GLFW_PRESS) {
+            if (!r_pressed) {
+                rot_enable = !rot_enable; 
+                r_pressed = true;
+            }
+        }
+        else {
+            r_pressed = false;
+        }
+        if (rot_enable) {
+            cur_angle += 0.001f; // скорость вращения
+        }
+
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
         glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)w / (float)h, 0.1f, 100.0f);
         glm::mat4 view = cam.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
-
-        //model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f)); // вращение самой модели 
+        model = glm::rotate(model, cur_angle, glm::vec3(0.0f, 0.1f, 0.0f)); // вращение самой модели
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
         model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
 
@@ -153,7 +212,7 @@ int main() {
         myShader.setMat4("view", view);
         myShader.setMat4("model", model);
 
-        mdl.Draw(myShader);
+        mdl->Draw(myShader);
 
         
         glEnable(GL_CULL_FACE);
@@ -164,9 +223,9 @@ int main() {
         outShader.setMat4("projection", proj);
         outShader.setMat4("view", view);
         outShader.setMat4("model", model);
-        outShader.setFloat("outline_width", 0.06f);
+        outShader.setFloat("outline_width", out_thick);
 
-        mdl.Draw(outShader);
+        mdl->Draw(outShader);
 
         glCullFace(GL_BACK); 
         glDisable(GL_CULL_FACE);
