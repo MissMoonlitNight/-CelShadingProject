@@ -16,8 +16,8 @@
 #pragma comment(lib, "comdlg32.lib") 
 
 // размеры экрана
-const unsigned int w = 1024;
-const unsigned int h = 768;
+int w = 1024;
+int h = 768;
 
 Camera cam(glm::vec3(0.0f, 0.0f, 0.0f), 5.0f);
 
@@ -45,10 +45,15 @@ std::string GetFile() {
     return "";
 }
 
+//масштабирование экрана
 void resize_cb(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
+
+    w = width;
+    h = height;
 }
 
+//мышка
 void mouse_cb(GLFWwindow* window, double xposIn, double yposIn) {
     float x = static_cast<float>(xposIn);
     float y = static_cast<float>(yposIn);
@@ -71,6 +76,7 @@ void mouse_cb(GLFWwindow* window, double xposIn, double yposIn) {
     }
 }
 
+//колёсико мыши
 void scroll_cb(GLFWwindow* window, double xoff, double yoff) {
     cam.ProcessMouseScroll(static_cast<float>(yoff));
 }
@@ -95,7 +101,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* win = glfwCreateWindow(w, h, "Project 1", NULL, NULL);
+    GLFWwindow* win = glfwCreateWindow(w, h, "Project 1 Outline", NULL, NULL);
     if (win == NULL) {
         std::cout << "Error window" << std::endl;
         glfwTerminate();
@@ -111,7 +117,11 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
 
+    // Основной шейдер
     Shader myShader("model.vert", "model.frag");
+    // Шейдер для обводки
+    Shader outShader("outline.vert", "outline.frag");
+
     Model mdl(path);
 
     glm::vec3 lghtPos(2.0f, 5.0f, 5.0f);
@@ -119,32 +129,47 @@ int main() {
     while (!glfwWindowShouldClose(win)) {
         if (glfwGetKey(win, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(win, true);
-
+        
         // цвет фона
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
+        glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)w / (float)h, 0.1f, 100.0f);
+        glm::mat4 view = cam.GetViewMatrix();
+        glm::mat4 model = glm::mat4(1.0f);
+
+        model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f)); // вращение самой модели 
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
+
+    
         myShader.use();
-
-        // настройки света
         myShader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-        myShader.setVec3("objColor", glm::vec3(0.6f, 0.6f, 0.6f)); // серый
+        myShader.setVec3("objColor", glm::vec3(0.6f, 0.6f, 0.6f));
         myShader.setVec3("lightPos", lghtPos);
         myShader.setVec3("viewPos", cam.Position);
 
-        // матрицы
-        glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)w / (float)h, 0.1f, 100.0f);
-        glm::mat4 view = cam.GetViewMatrix();
         myShader.setMat4("projection", proj);
         myShader.setMat4("view", view);
-
-        glm::mat4 model = glm::mat4(1.0f);
-        //model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f)); // вращение самой модели 
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
         myShader.setMat4("model", model);
 
         mdl.Draw(myShader);
+
+        
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);
+
+        //обводка
+        outShader.use();
+        outShader.setMat4("projection", proj);
+        outShader.setMat4("view", view);
+        outShader.setMat4("model", model);
+        outShader.setFloat("outline_width", 0.06f);
+
+        mdl.Draw(outShader);
+
+        glCullFace(GL_BACK); 
+        glDisable(GL_CULL_FACE);
 
         glfwSwapBuffers(win);
         glfwPollEvents();

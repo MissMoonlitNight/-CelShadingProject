@@ -43,5 +43,11 @@
     <None Include="model.frag">
       <Filter>Файлы ресурсов\shaders</Filter>
     </None>
+    <None Include="outline.frag">
+      <Filter>Файлы ресурсов\shaders</Filter>
+    </None>
+    <None Include="outline.vert">
+      <Filter>Файлы ресурсов\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

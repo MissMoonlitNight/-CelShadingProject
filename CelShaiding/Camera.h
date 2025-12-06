@@ -55,7 +55,6 @@ public:
     void ProcessMouseScroll(float yoffset) {
         Radius -= yoffset * ZoomSensitivity;
         
-        //отладка радиуса приближения Ограничения зума
         //std::cout << "Radius before" << Radius << std::endl;
         if (Radius <= 0.1f) Radius = 0.1f;
         //std::cout << "Radius after" << Radius <<std::endl;
