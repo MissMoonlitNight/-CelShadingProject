@@ -153,9 +153,9 @@ int main() {
     glEnable(GL_DEPTH_TEST);
 
     // Основной шейдер
-    Shader myShader("model.vert", "model.frag");
+    Shader myShader("shaders/model.vert", "shaders/model.frag");
     // Шейдер для обводки
-    Shader outShader("outline.vert", "outline.frag");
+    Shader outShader("shaders/outline.vert", "shaders/outline.frag");
 
     Model* mdl = new Model(path);
 
