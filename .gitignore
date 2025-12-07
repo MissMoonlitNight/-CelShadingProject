@@ -31,3 +31,6 @@ packages/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+!dependencies/lib/*.lib
+!dependencies/lib/*.dll
