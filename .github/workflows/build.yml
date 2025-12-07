@@ -25,7 +25,7 @@ jobs:
       run: |
         mkdir Build_Release
         copy CelShaiding.exe Build_Release\
-        copy dependencies\lib\assimp-vc143-mt.dll Build_Release\
+        copy dependencies\lib\assimp-vc143-mtd.lib Build_Release\
         xcopy /E /I shaders Build_Release\shaders
 
     - name: Upload Build
